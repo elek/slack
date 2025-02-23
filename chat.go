@@ -264,14 +264,14 @@ func redactToken(b []byte) []byte {
 // will be supported by the library.
 func UnsafeApplyMsgOptions(token, channel, apiurl string, options ...MsgOption) (string, url.Values, error) {
 	config, err := applyMsgOptions(token, channel, apiurl, options...)
-	return config.endpoint, config.values, err
+	return config.Endpoint, config.Values, err
 }
 
-func applyMsgOptions(token, channel, apiurl string, options ...MsgOption) (sendConfig, error) {
-	config := sendConfig{
-		apiurl:   apiurl,
-		endpoint: apiurl + string(chatPostMessage),
-		values: url.Values{
+func applyMsgOptions(token, channel, apiurl string, options ...MsgOption) (SendConfig, error) {
+	config := SendConfig{
+		Apiurl:   apiurl,
+		Endpoint: apiurl + string(chatPostMessage),
+		Values: url.Values{
 			"token":   {token},
 			"channel": {channel},
 		},
@@ -286,10 +286,10 @@ func applyMsgOptions(token, channel, apiurl string, options ...MsgOption) (sendC
 	return config, nil
 }
 
-func buildSender(apiurl string, options ...MsgOption) sendConfig {
-	return sendConfig{
-		apiurl:  apiurl,
-		options: options,
+func buildSender(apiurl string, options ...MsgOption) SendConfig {
+	return SendConfig{
+		Apiurl:  apiurl,
+		Options: options,
 	}
 }
 
@@ -306,43 +306,43 @@ const (
 	chatUnfurl          sendMode = "chat.unfurl"
 )
 
-type sendConfig struct {
-	apiurl          string
-	options         []MsgOption
-	mode            sendMode
-	endpoint        string
-	values          url.Values
-	attachments     []Attachment
-	metadata        SlackMetadata
-	blocks          Blocks
-	responseType    string
-	replaceOriginal bool
-	deleteOriginal  bool
+type SendConfig struct {
+	Apiurl          string
+	Options         []MsgOption
+	Mode            sendMode
+	Endpoint        string
+	Values          url.Values
+	Attachments     []Attachment
+	Metadata        SlackMetadata
+	Blocks          Blocks
+	ResponseType    string
+	ReplaceOriginal bool
+	DeleteOriginal  bool
 }
 
-func (t sendConfig) BuildRequest(token, channelID string) (req *http.Request, _ func(*chatResponseFull) responseParser, err error) {
+func (t SendConfig) BuildRequest(token, channelID string) (req *http.Request, _ func(*chatResponseFull) responseParser, err error) {
 	return t.BuildRequestContext(context.Background(), token, channelID)
 }
 
-func (t sendConfig) BuildRequestContext(ctx context.Context, token, channelID string) (req *http.Request, _ func(*chatResponseFull) responseParser, err error) {
-	if t, err = applyMsgOptions(token, channelID, t.apiurl, t.options...); err != nil {
+func (t SendConfig) BuildRequestContext(ctx context.Context, token, channelID string) (req *http.Request, _ func(*chatResponseFull) responseParser, err error) {
+	if t, err = applyMsgOptions(token, channelID, t.Apiurl, t.Options...); err != nil {
 		return nil, nil, err
 	}
 
-	switch t.mode {
+	switch t.Mode {
 	case chatResponse:
 		return responseURLSender{
-			endpoint:        t.endpoint,
-			values:          t.values,
-			attachments:     t.attachments,
-			metadata:        t.metadata,
-			blocks:          t.blocks,
-			responseType:    t.responseType,
-			replaceOriginal: t.replaceOriginal,
-			deleteOriginal:  t.deleteOriginal,
+			endpoint:        t.Endpoint,
+			values:          t.Values,
+			attachments:     t.Attachments,
+			metadata:        t.Metadata,
+			blocks:          t.Blocks,
+			responseType:    t.ResponseType,
+			replaceOriginal: t.ReplaceOriginal,
+			deleteOriginal:  t.DeleteOriginal,
 		}.BuildRequestContext(ctx)
 	default:
-		return formSender{endpoint: t.endpoint, values: t.values}.BuildRequestContext(ctx)
+		return formSender{endpoint: t.Endpoint, values: t.Values}.BuildRequestContext(ctx)
 	}
 }
 
@@ -395,32 +395,32 @@ func (t responseURLSender) BuildRequestContext(ctx context.Context) (*http.Reque
 }
 
 // MsgOption option provided when sending a message.
-type MsgOption func(*sendConfig) error
+type MsgOption func(*SendConfig) error
 
 // MsgOptionSchedule schedules a messages.
 func MsgOptionSchedule(postAt string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatScheduleMessage)
-		config.values.Add("post_at", postAt)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatScheduleMessage)
+		config.Values.Add("post_at", postAt)
 		return nil
 	}
 }
 
 // MsgOptionPost posts a messages, this is the default.
 func MsgOptionPost() MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatPostMessage)
-		config.values.Del("ts")
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatPostMessage)
+		config.Values.Del("ts")
 		return nil
 	}
 }
 
 // MsgOptionPostEphemeral - posts an ephemeral message to the provided user.
 func MsgOptionPostEphemeral(userID string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatPostEphemeral)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatPostEphemeral)
 		MsgOptionUser(userID)(config)
-		config.values.Del("ts")
+		config.Values.Del("ts")
 
 		return nil
 	}
@@ -428,38 +428,38 @@ func MsgOptionPostEphemeral(userID string) MsgOption {
 
 // MsgOptionMeMessage posts a "me message" type from the calling user
 func MsgOptionMeMessage() MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatMeMessage)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatMeMessage)
 		return nil
 	}
 }
 
 // MsgOptionUpdate updates a message based on the timestamp.
 func MsgOptionUpdate(timestamp string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatUpdate)
-		config.values.Add("ts", timestamp)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatUpdate)
+		config.Values.Add("ts", timestamp)
 		return nil
 	}
 }
 
 // MsgOptionDelete deletes a message based on the timestamp.
 func MsgOptionDelete(timestamp string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatDelete)
-		config.values.Add("ts", timestamp)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatDelete)
+		config.Values.Add("ts", timestamp)
 		return nil
 	}
 }
 
 // MsgOptionUnfurl unfurls a message based on the timestamp.
 func MsgOptionUnfurl(timestamp string, unfurls map[string]Attachment) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatUnfurl)
-		config.values.Add("ts", timestamp)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatUnfurl)
+		config.Values.Add("ts", timestamp)
 		unfurlsStr, err := json.Marshal(unfurls)
 		if err == nil {
-			config.values.Add("unfurls", string(unfurlsStr))
+			config.Values.Add("unfurls", string(unfurlsStr))
 		}
 		return err
 	}
@@ -467,10 +467,10 @@ func MsgOptionUnfurl(timestamp string, unfurls map[string]Attachment) MsgOption 
 
 // MsgOptionUnfurlAuthURL unfurls a message using an auth url based on the timestamp.
 func MsgOptionUnfurlAuthURL(timestamp string, userAuthURL string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatUnfurl)
-		config.values.Add("ts", timestamp)
-		config.values.Add("user_auth_url", userAuthURL)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatUnfurl)
+		config.Values.Add("ts", timestamp)
+		config.Values.Add("user_auth_url", userAuthURL)
 		return nil
 	}
 }
@@ -478,10 +478,10 @@ func MsgOptionUnfurlAuthURL(timestamp string, userAuthURL string) MsgOption {
 // MsgOptionUnfurlAuthRequired requests that the user installs the
 // Slack app for unfurling.
 func MsgOptionUnfurlAuthRequired(timestamp string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatUnfurl)
-		config.values.Add("ts", timestamp)
-		config.values.Add("user_auth_required", "true")
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatUnfurl)
+		config.Values.Add("ts", timestamp)
+		config.Values.Add("user_auth_required", "true")
 		return nil
 	}
 }
@@ -489,50 +489,50 @@ func MsgOptionUnfurlAuthRequired(timestamp string) MsgOption {
 // MsgOptionUnfurlAuthMessage attaches a message inviting the user to
 // authenticate.
 func MsgOptionUnfurlAuthMessage(timestamp string, msg string) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = config.apiurl + string(chatUnfurl)
-		config.values.Add("ts", timestamp)
-		config.values.Add("user_auth_message", msg)
+	return func(config *SendConfig) error {
+		config.Endpoint = config.Apiurl + string(chatUnfurl)
+		config.Values.Add("ts", timestamp)
+		config.Values.Add("user_auth_message", msg)
 		return nil
 	}
 }
 
 // MsgOptionResponseURL supplies a url to use as the endpoint.
 func MsgOptionResponseURL(url string, responseType string) MsgOption {
-	return func(config *sendConfig) error {
-		config.mode = chatResponse
-		config.endpoint = url
-		config.responseType = responseType
-		config.values.Del("ts")
+	return func(config *SendConfig) error {
+		config.Mode = chatResponse
+		config.Endpoint = url
+		config.ResponseType = responseType
+		config.Values.Del("ts")
 		return nil
 	}
 }
 
 // MsgOptionReplaceOriginal replaces original message with response url
 func MsgOptionReplaceOriginal(responseURL string) MsgOption {
-	return func(config *sendConfig) error {
-		config.mode = chatResponse
-		config.endpoint = responseURL
-		config.replaceOriginal = true
+	return func(config *SendConfig) error {
+		config.Mode = chatResponse
+		config.Endpoint = responseURL
+		config.ReplaceOriginal = true
 		return nil
 	}
 }
 
 // MsgOptionDeleteOriginal deletes original message with response url
 func MsgOptionDeleteOriginal(responseURL string) MsgOption {
-	return func(config *sendConfig) error {
-		config.mode = chatResponse
-		config.endpoint = responseURL
-		config.deleteOriginal = true
+	return func(config *SendConfig) error {
+		config.Mode = chatResponse
+		config.Endpoint = responseURL
+		config.DeleteOriginal = true
 		return nil
 	}
 }
 
 // MsgOptionAsUser whether or not to send the message as the user.
 func MsgOptionAsUser(b bool) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		if b != DEFAULT_MESSAGE_ASUSER {
-			config.values.Set("as_user", "true")
+			config.Values.Set("as_user", "true")
 		}
 		return nil
 	}
@@ -540,16 +540,16 @@ func MsgOptionAsUser(b bool) MsgOption {
 
 // MsgOptionUser set the user for the message.
 func MsgOptionUser(userID string) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("user", userID)
+	return func(config *SendConfig) error {
+		config.Values.Set("user", userID)
 		return nil
 	}
 }
 
 // MsgOptionUsername set the username for the message.
 func MsgOptionUsername(username string) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("username", username)
+	return func(config *SendConfig) error {
+		config.Values.Set("username", username)
 		return nil
 	}
 }
@@ -557,23 +557,23 @@ func MsgOptionUsername(username string) MsgOption {
 // MsgOptionText provide the text for the message, optionally escape the provided
 // text.
 func MsgOptionText(text string, escape bool) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		if escape {
 			text = slackutilsx.EscapeMessage(text)
 		}
-		config.values.Add("text", text)
+		config.Values.Add("text", text)
 		return nil
 	}
 }
 
 // MsgOptionAttachments provide attachments for the message.
 func MsgOptionAttachments(attachments ...Attachment) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		if attachments == nil {
 			return nil
 		}
 
-		config.attachments = attachments
+		config.Attachments = attachments
 
 		// FIXME: We are setting the attachments on the message twice: above for
 		// the json version, and below for the html version.  The marshalled bytes
@@ -581,7 +581,7 @@ func MsgOptionAttachments(attachments ...Attachment) MsgOption {
 
 		attachmentBytes, err := json.Marshal(attachments)
 		if err == nil {
-			config.values.Set("attachments", string(attachmentBytes))
+			config.Values.Set("attachments", string(attachmentBytes))
 		}
 
 		return err
@@ -590,16 +590,16 @@ func MsgOptionAttachments(attachments ...Attachment) MsgOption {
 
 // MsgOptionBlocks sets blocks for the message
 func MsgOptionBlocks(blocks ...Block) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		if blocks == nil {
 			return nil
 		}
 
-		config.blocks.BlockSet = append(config.blocks.BlockSet, blocks...)
+		config.Blocks.BlockSet = append(config.Blocks.BlockSet, blocks...)
 
 		blocks, err := json.Marshal(blocks)
 		if err == nil {
-			config.values.Set("blocks", string(blocks))
+			config.Values.Set("blocks", string(blocks))
 		}
 		return err
 	}
@@ -607,55 +607,55 @@ func MsgOptionBlocks(blocks ...Block) MsgOption {
 
 // MsgOptionEnableLinkUnfurl enables link unfurling
 func MsgOptionEnableLinkUnfurl() MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("unfurl_links", "true")
+	return func(config *SendConfig) error {
+		config.Values.Set("unfurl_links", "true")
 		return nil
 	}
 }
 
 // MsgOptionDisableLinkUnfurl disables link unfurling
 func MsgOptionDisableLinkUnfurl() MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("unfurl_links", "false")
+	return func(config *SendConfig) error {
+		config.Values.Set("unfurl_links", "false")
 		return nil
 	}
 }
 
 // MsgOptionDisableMediaUnfurl disables media unfurling.
 func MsgOptionDisableMediaUnfurl() MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("unfurl_media", "false")
+	return func(config *SendConfig) error {
+		config.Values.Set("unfurl_media", "false")
 		return nil
 	}
 }
 
 // MsgOptionDisableMarkdown disables markdown.
 func MsgOptionDisableMarkdown() MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("mrkdwn", "false")
+	return func(config *SendConfig) error {
+		config.Values.Set("mrkdwn", "false")
 		return nil
 	}
 }
 
 // MsgOptionTS sets the thread TS of the message to enable creating or replying to a thread
 func MsgOptionTS(ts string) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("thread_ts", ts)
+	return func(config *SendConfig) error {
+		config.Values.Set("thread_ts", ts)
 		return nil
 	}
 }
 
 // MsgOptionBroadcast sets reply_broadcast to true
 func MsgOptionBroadcast() MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("reply_broadcast", "true")
+	return func(config *SendConfig) error {
+		config.Values.Set("reply_broadcast", "true")
 		return nil
 	}
 }
 
 // MsgOptionCompose combines multiple options into a single option.
 func MsgOptionCompose(options ...MsgOption) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		for _, opt := range options {
 			if err := opt(config); err != nil {
 				return err
@@ -667,41 +667,41 @@ func MsgOptionCompose(options ...MsgOption) MsgOption {
 
 // MsgOptionParse set parse option.
 func MsgOptionParse(b bool) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		var v string
 		if b {
 			v = "full"
 		} else {
 			v = "none"
 		}
-		config.values.Set("parse", v)
+		config.Values.Set("parse", v)
 		return nil
 	}
 }
 
 // MsgOptionIconURL sets an icon URL
 func MsgOptionIconURL(iconURL string) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("icon_url", iconURL)
+	return func(config *SendConfig) error {
+		config.Values.Set("icon_url", iconURL)
 		return nil
 	}
 }
 
 // MsgOptionIconEmoji sets an icon emoji
 func MsgOptionIconEmoji(iconEmoji string) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("icon_emoji", iconEmoji)
+	return func(config *SendConfig) error {
+		config.Values.Set("icon_emoji", iconEmoji)
 		return nil
 	}
 }
 
 // MsgOptionMetadata sets message metadata
 func MsgOptionMetadata(metadata SlackMetadata) MsgOption {
-	return func(config *sendConfig) error {
-		config.metadata = metadata
+	return func(config *SendConfig) error {
+		config.Metadata = metadata
 		meta, err := json.Marshal(metadata)
 		if err == nil {
-			config.values.Set("metadata", string(meta))
+			config.Values.Set("metadata", string(meta))
 		}
 		return err
 	}
@@ -709,8 +709,8 @@ func MsgOptionMetadata(metadata SlackMetadata) MsgOption {
 
 // MsgOptionLinkNames finds and links user groups. Does not support linking individual users
 func MsgOptionLinkNames(linkName bool) MsgOption {
-	return func(config *sendConfig) error {
-		config.values.Set("link_names", strconv.FormatBool(linkName))
+	return func(config *SendConfig) error {
+		config.Values.Set("link_names", strconv.FormatBool(linkName))
 		return nil
 	}
 }
@@ -720,62 +720,62 @@ func MsgOptionLinkNames(linkName bool) MsgOption {
 // will be supported by the library, it is subject to change without notice that
 // may result in compilation errors or runtime behaviour changes.
 func UnsafeMsgOptionEndpoint(endpoint string, update func(url.Values)) MsgOption {
-	return func(config *sendConfig) error {
-		config.endpoint = endpoint
-		update(config.values)
+	return func(config *SendConfig) error {
+		config.Endpoint = endpoint
+		update(config.Values)
 		return nil
 	}
 }
 
 // MsgOptionPostMessageParameters maintain backwards compatibility.
 func MsgOptionPostMessageParameters(params PostMessageParameters) MsgOption {
-	return func(config *sendConfig) error {
+	return func(config *SendConfig) error {
 		if params.Username != DEFAULT_MESSAGE_USERNAME {
-			config.values.Set("username", params.Username)
+			config.Values.Set("username", params.Username)
 		}
 
 		// chat.postEphemeral support
 		if params.User != DEFAULT_MESSAGE_USERNAME {
-			config.values.Set("user", params.User)
+			config.Values.Set("user", params.User)
 		}
 
 		// never generates an error.
 		MsgOptionAsUser(params.AsUser)(config)
 
 		if params.Parse != DEFAULT_MESSAGE_PARSE {
-			config.values.Set("parse", params.Parse)
+			config.Values.Set("parse", params.Parse)
 		}
 		if params.LinkNames != DEFAULT_MESSAGE_LINK_NAMES {
-			config.values.Set("link_names", "1")
+			config.Values.Set("link_names", "1")
 		}
 
 		if params.UnfurlLinks != DEFAULT_MESSAGE_UNFURL_LINKS {
-			config.values.Set("unfurl_links", "true")
+			config.Values.Set("unfurl_links", "true")
 		}
 
 		// I want to send a message with explicit `as_user` `true` and `unfurl_links` `false` in request.
 		// Because setting `as_user` to `true` will change the default value for `unfurl_links` to `true` on Slack API side.
 		if params.AsUser != DEFAULT_MESSAGE_ASUSER && params.UnfurlLinks == DEFAULT_MESSAGE_UNFURL_LINKS {
-			config.values.Set("unfurl_links", "false")
+			config.Values.Set("unfurl_links", "false")
 		}
 		if params.UnfurlMedia != DEFAULT_MESSAGE_UNFURL_MEDIA {
-			config.values.Set("unfurl_media", "false")
+			config.Values.Set("unfurl_media", "false")
 		}
 		if params.IconURL != DEFAULT_MESSAGE_ICON_URL {
-			config.values.Set("icon_url", params.IconURL)
+			config.Values.Set("icon_url", params.IconURL)
 		}
 		if params.IconEmoji != DEFAULT_MESSAGE_ICON_EMOJI {
-			config.values.Set("icon_emoji", params.IconEmoji)
+			config.Values.Set("icon_emoji", params.IconEmoji)
 		}
 		if params.Markdown != DEFAULT_MESSAGE_MARKDOWN {
-			config.values.Set("mrkdwn", "false")
+			config.Values.Set("mrkdwn", "false")
 		}
 
 		if params.ThreadTimestamp != DEFAULT_MESSAGE_THREAD_TIMESTAMP {
-			config.values.Set("thread_ts", params.ThreadTimestamp)
+			config.Values.Set("thread_ts", params.ThreadTimestamp)
 		}
 		if params.ReplyBroadcast != DEFAULT_MESSAGE_REPLY_BROADCAST {
-			config.values.Set("reply_broadcast", "true")
+			config.Values.Set("reply_broadcast", "true")
 		}
 
 		return nil

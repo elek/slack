@@ -1,3 +1,7 @@
+**Forked from: https://github.com/slack-go/slack**
+
+**Use the original one!**
+
 Slack API in Go [![Go Reference](https://pkg.go.dev/badge/github.com/slack-go/slack.svg)](https://pkg.go.dev/github.com/slack-go/slack)
 ===============
 
