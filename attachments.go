@@ -58,6 +58,18 @@ type ConfirmationField struct {
 	DismissText string `json:"dismiss_text,omitempty"` // Optional. Defaults to "Cancel"
 }
 
+// Preview for unfurl response.
+type Preview struct {
+	Title   Title  `json:"title,omitempty"`
+	IconURL string `json:"icon_url,omitempty"`
+}
+
+// Title for preview.
+type Title struct {
+	Type string `json:"type,omitempty"`
+	Text string `json:"text,omitempty"`
+}
+
 // Attachment contains all the information for an attachment
 type Attachment struct {
 	Color    string `json:"color,omitempty"`
@@ -90,6 +102,8 @@ type Attachment struct {
 	MarkdownIn []string           `json:"mrkdwn_in,omitempty"`
 
 	Blocks Blocks `json:"blocks,omitempty"`
+
+	Preview Preview `json:"preview,omitempty"`
 
 	Footer     string `json:"footer,omitempty"`
 	FooterIcon string `json:"footer_icon,omitempty"`
